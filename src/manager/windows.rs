@@ -192,9 +192,18 @@ impl WindowOS {
         let role = self.role().ok();
         let subrole = self.subrole().ok();
 
-        subrole.as_deref() == Some(kAXStandardWindowSubrole)
-            || (role.as_deref() == Some(kAXWindowRole)
-                && subrole.as_deref() == Some(kAXFloatingWindowSubrole))
+        if subrole.as_deref() == Some(kAXStandardWindowSubrole) {
+            return true;
+        }
+        // Reason: Emacs (and other apps using `NSPanel` / borderless child frames such as
+        // corfu, company-box, vertico-posframe) reports child frames as
+        // `AXWindow`/`AXFloatingWindow`. They are decoration-less helper popups that must
+        // not be tiled. Apps that legitimately ship `AXFloatingWindow` as a primary
+        // window (e.g. inspector panels) keep their standard window chrome, so we use
+        // the close button as the discriminator.
+        role.as_deref() == Some(kAXWindowRole)
+            && subrole.as_deref() == Some(kAXFloatingWindowSubrole)
+            && self.ax_element.has_close_button()
     }
 
     fn app_reference(&self) -> Option<CFRetained<AXUIWrapper>> {

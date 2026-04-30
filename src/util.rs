@@ -1,6 +1,7 @@
 use accessibility_sys::{
-    AXObserverGetRunLoopSource, AXUIElementRef, kAXFocusedWindowAttribute, kAXMinimizedAttribute,
-    kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute, kAXWindowsAttribute,
+    AXObserverGetRunLoopSource, AXUIElementRef, kAXCloseButtonAttribute, kAXFocusedWindowAttribute,
+    kAXMinimizedAttribute, kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute,
+    kAXWindowsAttribute,
 };
 use core::ptr::NonNull;
 use objc2::rc::autoreleasepool;
@@ -176,6 +177,14 @@ pub trait AXUIAttributes {
         let axname = CFString::from_str("AXFullScreen");
         self.get_attribute::<CFBoolean>(&axname)
             .map(|value| CFBoolean::value(&value))
+    }
+
+    /// Returns `true` if the element exposes a standard close button. Decorated
+    /// `NSWindow`s expose one; borderless or undecorated windows (e.g. Emacs
+    /// child frames used by corfu / company-box / posframe) do not.
+    fn has_close_button(&self) -> bool {
+        let axname = CFString::from_static_str(kAXCloseButtonAttribute);
+        self.get_attribute::<AXUIWrapper>(&axname).is_ok()
     }
 
     fn focused_window_id(&self) -> Result<WinID> {
