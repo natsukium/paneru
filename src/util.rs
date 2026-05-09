@@ -1,6 +1,6 @@
 use accessibility_sys::{
-    AXObserverGetRunLoopSource, AXUIElementRef, kAXCloseButtonAttribute, kAXFocusedWindowAttribute,
-    kAXMinimizedAttribute, kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute,
+    AXObserverGetRunLoopSource, AXUIElementRef, kAXFocusedWindowAttribute, kAXMinimizedAttribute,
+    kAXParentAttribute, kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute,
     kAXWindowsAttribute,
 };
 use core::ptr::NonNull;
@@ -179,12 +179,12 @@ pub trait AXUIAttributes {
             .map(|value| CFBoolean::value(&value))
     }
 
-    /// Returns `true` if the element exposes a standard close button. Decorated
-    /// `NSWindow`s expose one; borderless or undecorated windows (e.g. Emacs
-    /// child frames used by corfu / company-box / posframe) do not.
-    fn has_close_button(&self) -> bool {
-        let axname = CFString::from_static_str(kAXCloseButtonAttribute);
-        self.get_attribute::<AXUIWrapper>(&axname).is_ok()
+    /// Returns the AX parent of this element. Top-level windows return their
+    /// owning application element; child windows (e.g. Emacs child frames used
+    /// by corfu / company-box / posframe) return the parent window element.
+    fn parent(&self) -> Result<CFRetained<AXUIWrapper>> {
+        let axname = CFString::from_static_str(kAXParentAttribute);
+        self.get_attribute::<AXUIWrapper>(&axname)
     }
 
     fn focused_window_id(&self) -> Result<WinID> {

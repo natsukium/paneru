@@ -195,15 +195,28 @@ impl WindowOS {
         if subrole.as_deref() == Some(kAXStandardWindowSubrole) {
             return true;
         }
-        // Reason: Emacs (and other apps using `NSPanel` / borderless child frames such as
-        // corfu, company-box, vertico-posframe) reports child frames as
-        // `AXWindow`/`AXFloatingWindow`. They are decoration-less helper popups that must
-        // not be tiled. Apps that legitimately ship `AXFloatingWindow` as a primary
-        // window (e.g. inspector panels) keep their standard window chrome, so we use
-        // the close button as the discriminator.
-        role.as_deref() == Some(kAXWindowRole)
-            && subrole.as_deref() == Some(kAXFloatingWindowSubrole)
-            && self.ax_element.has_close_button()
+        if role.as_deref() != Some(kAXWindowRole)
+            || subrole.as_deref() != Some(kAXFloatingWindowSubrole)
+        {
+            return false;
+        }
+        // Reason: Emacs (and similar apps such as corfu, company-box, vertico-posframe)
+        // reports child frames as `AXWindow`/`AXFloatingWindow`, indistinguishable by
+        // role from legitimate floating windows like inspector panels. The structural
+        // discriminator is the AX parent: top-level floats are parented to the
+        // application element, while child frames are parented to another window. This
+        // mirrors yabai's `is_root` check, scoped to the floating subrole so standard
+        // windows are unaffected. macOS automatically keeps child windows attached to
+        // their parent, so leaving them unmanaged does not strand them on the desktop.
+        let Ok(parent) = self.ax_element.parent() else {
+            return true;
+        };
+        let Some(app) = self.app_reference() else {
+            return true;
+        };
+        let parent_cf: &CFType = parent.as_ref();
+        let app_cf: &CFType = app.as_ref();
+        parent_cf == app_cf
     }
 
     fn app_reference(&self) -> Option<CFRetained<AXUIWrapper>> {
