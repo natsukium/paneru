@@ -1,7 +1,6 @@
 use accessibility_sys::{
     AXObserverGetRunLoopSource, AXUIElementRef, kAXFocusedWindowAttribute, kAXMinimizedAttribute,
-    kAXParentAttribute, kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute,
-    kAXWindowsAttribute,
+    kAXRoleAttribute, kAXSubroleAttribute, kAXTitleAttribute, kAXWindowsAttribute,
 };
 use core::ptr::NonNull;
 use objc2::rc::autoreleasepool;
@@ -177,14 +176,6 @@ pub trait AXUIAttributes {
         let axname = CFString::from_str("AXFullScreen");
         self.get_attribute::<CFBoolean>(&axname)
             .map(|value| CFBoolean::value(&value))
-    }
-
-    /// Returns the AX parent of this element. Top-level windows return their
-    /// owning application element; child windows (e.g. Emacs child frames used
-    /// by corfu / company-box / posframe) return the parent window element.
-    fn parent(&self) -> Result<CFRetained<AXUIWrapper>> {
-        let axname = CFString::from_static_str(kAXParentAttribute);
-        self.get_attribute::<AXUIWrapper>(&axname)
     }
 
     fn focused_window_id(&self) -> Result<WinID> {

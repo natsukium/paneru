@@ -26,7 +26,7 @@ use super::skylight::{
     SLSWindowIteratorAdvance,
 };
 use crate::errors::{Error, Result};
-use crate::manager::{Origin, Size, irect_from};
+use crate::manager::{Origin, Size, irect_from, window_parent_id};
 use crate::platform::{Pid, ProcessSerialNumber, WinID, macos_major_version};
 use crate::util::{AXUIAttributes, AXUIWrapper, MacResult};
 
@@ -203,20 +203,14 @@ impl WindowOS {
         // Reason: Emacs (and similar apps such as corfu, company-box, vertico-posframe)
         // reports child frames as `AXWindow`/`AXFloatingWindow`, indistinguishable by
         // role from legitimate floating windows like inspector panels. The structural
-        // discriminator is the AX parent: top-level floats are parented to the
-        // application element, while child frames are parented to another window. This
-        // mirrors yabai's `is_root` check, scoped to the floating subrole so standard
-        // windows are unaffected. macOS automatically keeps child windows attached to
-        // their parent, so leaving them unmanaged does not strand them on the desktop.
-        let Ok(parent) = self.ax_element.parent() else {
-            return true;
-        };
-        let Some(app) = self.app_reference() else {
-            return true;
-        };
-        let parent_cf: &CFType = parent.as_ref();
-        let app_cf: &CFType = app.as_ref();
-        parent_cf == app_cf
+        // discriminator is the WindowServer-level child-window relationship: child
+        // frames have a non-zero CGS parent ID, while top-level floats do not.
+        // `kAXParentAttribute` cannot be used here because it always reports the app
+        // element regardless of `NSWindow` parentage. Scoping the check to the floating
+        // subrole keeps standard windows unaffected, and macOS automatically keeps
+        // child windows attached to their parent so leaving them unmanaged does not
+        // strand them on the desktop.
+        window_parent_id(self.id) == 0
     }
 
     fn app_reference(&self) -> Option<CFRetained<AXUIWrapper>> {

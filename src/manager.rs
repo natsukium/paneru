@@ -636,6 +636,23 @@ pub fn window_iterator_for_id(window_id: WinID) -> Option<CFRetained<CFType>> {
     Some(unsafe { CFRetained::from_raw(SLSWindowQueryResultCopyWindows(query.deref().into())) })
 }
 
+/// Returns the WindowServer-level parent window ID, or 0 if this window is top-level.
+///
+/// Reason: `kAXParentAttribute` always reports the application element regardless of
+/// `NSWindow` `parentWindow:` status, so it cannot distinguish Emacs child frames
+/// (used by corfu, company-box, vertico-posframe) from top-level floating windows.
+/// The CGS iterator exposes the actual child-window relationship that yabai relies on
+/// in its `window_parent` check.
+pub fn window_parent_id(window_id: WinID) -> WinID {
+    let Some(iterator) = window_iterator_for_id(window_id) else {
+        return 0;
+    };
+    if !unsafe { SLSWindowIteratorAdvance(&raw const *iterator) } {
+        return 0;
+    }
+    unsafe { SLSWindowIteratorGetParentID(&raw const *iterator) }
+}
+
 /// Determines if a window is valid based on its parent ID, attributes, and tags.
 /// This function implements complex logic to filter out irrelevant or invalid windows.
 ///
